@@ -15,8 +15,8 @@
   .small{font-size:12px;color:#666}
   footer{margin-top:18px;font-size:12px;color:#666}
   .timeline{margin-top:24px;padding-top:18px;border-top:1px solid #eee;font-size:11px;color:#999;font-family:monospace;line-height:1.6}
-  .bar{margin-top:8px;font-family:monospace}
-  .bar-line{margin-top:6px;font-size:11px}
+  .bar{margin-top:8px;font-family:monospace;letter-spacing:1px}
+  .bar-line{margin-top:6px;font-size:12px;font-family:monospace;letter-spacing:1px}
   .late-text{margin-top:8px}
   @media (max-width:520px){main{padding:12px;margin:14px} h1{font-size:16px}}
 </style>
@@ -152,6 +152,7 @@
     
     const timelineLength = 40;
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalize to midnight
     
     // Determine range: ensure it includes deadline, today, and expected date
     let startDate = new Date(deadlineDate);
@@ -206,12 +207,14 @@
       
       // Check all days in this block for markers
       let checkDate = new Date(blockStartDate);
+      checkDate.setHours(0, 0, 0, 0); // normalize
       while(checkDate <= blockEndDate){
         if(checkDate.getMonth() !== lastMonthShown) monthChanged = true;
         
-        if(deadlineDate.toDateString() === checkDate.toDateString()) hasDeadline = true;
-        if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()) hasExpected = true;
-        if(today.toDateString() === checkDate.toDateString()) hasToday = true;
+        const dateStr = checkDate.toDateString();
+        if(deadlineDate.toDateString() === dateStr) hasDeadline = true;
+        if(expectedDate && expectedDate.toDateString() === dateStr) hasExpected = true;
+        if(today.toDateString() === dateStr) hasToday = true;
         
         checkDate.setDate(checkDate.getDate() + 1);
       }
