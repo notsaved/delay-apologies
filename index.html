@@ -13,35 +13,30 @@
   main{max-width:900px;margin:28px auto;padding:18px}
   h1{font-size:18px;margin:0 0 14px}
   p.desc{margin:0 0 18px;color:#444}
-  pre.editor{width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;background:#fafafa;font-family:monospace;margin:10px 0;white-space:pre-wrap}
   .card{border:1px solid #eee;padding:12px;margin:10px 0;border-radius:8px}
-  .row{display:flex;align-items:center;gap:12px}
-  .col{flex:1}
-  .meta{font-size:12px;color:#444}
-  .bar{font-family:monospace;letter-spacing:1px}
+  .title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .title strong{flex:1}
+  .title .pct{font-size:12px;color:#666}
   .small{font-size:12px;color:#666}
   footer{margin-top:18px;font-size:12px;color:#666}
-  a{color:inherit;text-decoration:underline}
   @media (max-width:520px){main{padding:12px;margin:14px} h1{font-size:16px}}
 </style>
 </head>
 <body>
 <main>
-  <h1>Writing projects status</h1>
-  <p class="desc">Apologies for the delay. This is what I'm currently working on, and how it is going.</p>
+  <h1>Apologies for the Delay</h1>
+  <p class="desc">If you are waiting for something from me, this is what I'm currently working on, and how it is going:</p>
 
   <div id="board"></div>
 
-  <footer>Apologies for the delay.</footer>
+  <footer>Again, apologies for the delay.</footer>
 </main>
 
 
 <script>
 (function(){
   // Configuration
-  const PROGRESS_BLOCKS = 20; // number of characters for progress bar
-  const SLIDER_WIDTH = 21;    // number of characters for lateness slider
-  const MAX_LATE_DAYS = 30;   // clamp lateness to +-MAX_LATE_DAYS
+  const PROGRESS_BLOCKS = 20;
 
   // Helper: parse dd/mm/yyyy
   function parseDateDMY(s){
@@ -69,19 +64,6 @@
     return '█'.repeat(filled) + '░'.repeat(empty);
   }
 
-  // Build lateness slider: center is deadline; dot moves left (early) or right (late)
-  function buildLatenessSlider(daysLate){
-    if(daysLate === null) return 'n/a';
-    const clamp = Math.max(-MAX_LATE_DAYS, Math.min(MAX_LATE_DAYS, daysLate));
-    // map clamp from [-MAX_LATE_DAYS, MAX_LATE_DAYS] to [0, SLIDER_WIDTH-1]
-    const pos = Math.round((clamp + MAX_LATE_DAYS) / (2 * MAX_LATE_DAYS) * (SLIDER_WIDTH - 1));
-    let out = '';
-    for(let i=0;i<SLIDER_WIDTH;i++){
-      out += (i === pos) ? '●' : '·';
-    }
-    return out;
-  }
-
   // Format date as dd/mm/yyyy
   function formatDMY(d){
     if(!d) return 'n/a';
@@ -93,10 +75,10 @@
 
   // Lateness text
   function latenessText(daysLate){
-    if(daysLate === null) return 'no original deadline';
-    if(daysLate > 0) return `Late by ${daysLate} day${daysLate===1? '': 's'}`;
-    if(daysLate === 0) return 'Due today';
-    return `Due in ${-daysLate} day${daysLate===-1? '': 's'}`;
+    if(daysLate === null) return 'no deadline';
+    if(daysLate > 0) return `${daysLate}d late`;
+    if(daysLate === 0) return 'due today';
+    return `due in ${-daysLate}d`;
   }
 
   // Calculate expected submission date based on completion percentage per day after deadline
@@ -130,6 +112,48 @@
     return expectedDate;
   }
 
+  // Build a month timeline showing deadline and expected completion
+  function buildMonthTimeline(deadlineDate, expectedDate){
+    if(!deadlineDate) return 'n/a';
+    
+    // Determine the range of months to display
+    const startMonth = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), 1);
+    const endDate = expectedDate || deadlineDate;
+    const endMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+    
+    // Get number of months in range
+    const monthsInRange = (endMonth.getFullYear() - startMonth.getFullYear()) * 12 + 
+                          (endMonth.getMonth() - startMonth.getMonth()) + 1;
+    
+    // Limit to reasonable display (max 3 months)
+    const displayMonths = Math.min(monthsInRange, 3);
+    let timeline = '';
+    
+    for(let i = 0; i < displayMonths; i++){
+      const currentMonth = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1);
+      const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+      
+      let monthBar = '';
+      for(let day = 1; day <= daysInMonth; day++){
+        const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+        let char = '·';
+        
+        if(deadlineDate.toDateString() === checkDate.toDateString()){
+          char = '●'; // deadline marker
+        } else if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()){
+          char = '○'; // expected date marker
+        }
+        
+        monthBar += char;
+      }
+      
+      const monthName = currentMonth.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+      timeline += `${monthName}:[${monthBar}] `;
+    }
+    
+    return timeline.trim();
+  }
+
   // Fetch tasks.json and render
   async function loadAndRender(){
     let tasks = null;
@@ -151,10 +175,7 @@
     renderTasks(tasks);
   }
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c])); }
-
   function renderTasks(tasks){
-    const today = new Date();
     const board = document.getElementById('board');
     board.innerHTML = '';
 
@@ -170,85 +191,57 @@
 
       // Calculate expected submission date based on completion percentage per day
       const expect = calculateExpectedSubmission(orig, comp);
-
-      const daysLate = orig ? dayDiff(orig, new Date()) : null; // positive if late
-
+      const daysLate = orig ? dayDiff(orig, new Date()) : null;
       const origText = orig ? formatDMY(orig) : 'n/a';
       const expectText = expect ? formatDMY(expect) : 'n/a';
-
       const bar = buildProgressBar(comp);
-      const slider = orig ? buildLatenessSlider(daysLate) : 'n/a';
       const lateTxt = latenessText(daysLate);
 
       const card = document.createElement('div');
       card.className = 'card';
 
-      // build content using DOM for safety
-      const row = document.createElement('div'); row.className = 'row';
-      const col = document.createElement('div'); col.className = 'col';
-      const strong = document.createElement('strong'); strong.textContent = name; col.appendChild(strong);
-      row.appendChild(col);
-      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `completion: ${comp}%`; row.appendChild(meta);
+      const title = document.createElement('div');
+      title.className = 'title';
+      const strong = document.createElement('strong');
+      strong.textContent = name;
+      const pct = document.createElement('span');
+      pct.className = 'pct';
+      pct.textContent = `${comp}%`;
+      title.appendChild(strong);
+      title.appendChild(pct);
 
-      const dates = document.createElement('div'); dates.className = 'small'; dates.textContent = `original: ${origText}  |  expected: ${expectText}`;
+      const dates = document.createElement('div');
+      dates.className = 'small';
+      dates.textContent = `deadline: ${origText}  |  expected: ${expectText}`;
 
       const barLine = document.createElement('div');
       barLine.style.marginTop = '8px';
       barLine.style.fontFamily = 'monospace';
-      barLine.textContent = bar + '  ';
-      const percentSpan = document.createElement('span');
-      percentSpan.className = 'small';
-      percentSpan.textContent = ` ${comp}%`;
-      barLine.appendChild(percentSpan);
+      barLine.textContent = bar;
 
-      const lateLine = document.createElement('div'); lateLine.style.marginTop = '8px'; lateLine.className = 'small'; lateLine.textContent = lateTxt;
+      const monthLine = document.createElement('div');
+      monthLine.style.marginTop = '6px';
+      monthLine.style.fontFamily = 'monospace';
+      monthLine.style.fontSize = '11px';
+      monthLine.className = 'small';
+      monthLine.textContent = buildMonthTimeline(orig, expect);
 
-      const sliderLine = document.createElement('div'); sliderLine.style.marginTop = '6px'; sliderLine.className = 'bar small'; sliderLine.textContent = 'lateness: ' + slider + (daysLate !== null ? '  (' + (daysLate > 0 ? 'late: ' + daysLate : daysLate===0 ? 'on time' : 'early: ' + (-daysLate)) + ')' : '');
+      const lateLine = document.createElement('div');
+      lateLine.style.marginTop = '8px';
+      lateLine.className = 'small';
+      lateLine.textContent = lateTxt;
 
-      card.appendChild(row);
+      card.appendChild(title);
       card.appendChild(dates);
       card.appendChild(barLine);
-  let refreshIntervalId = null;
-  const REFRESH_INTERVAL = 5 * 60 * 1000;
-
-  function startAutoRefresh() {
-    if (refreshIntervalId === null) {
-      refreshIntervalId = setInterval(loadAndRender, REFRESH_INTERVAL);
-    }
-  }
-
-  function stopAutoRefresh() {
-    if (refreshIntervalId !== null) {
-      clearInterval(refreshIntervalId);
-      refreshIntervalId = null;
-    }
-  }
-
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      loadAndRender(); // Optionally refresh immediately when tab becomes visible
-      startAutoRefresh();
-    } else {
-      stopAutoRefresh();
-    }
-  }
-
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-
-  // Start auto-refresh if page is visible on load
-  if (document.visibilityState === 'visible') {
-    startAutoRefresh();
-  }
-
+      card.appendChild(monthLine);
+      card.appendChild(lateLine);
       board.appendChild(card);
     });
   }
 
   // initial load
   loadAndRender();
-
-  // optional: auto-refresh every 5 minutes to pick up tasks.json edits
-  setInterval(loadAndRender, 5 * 60 * 1000);
 
 })();
 </script>
