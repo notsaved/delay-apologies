@@ -36,7 +36,7 @@
 <script>
 (function(){
   // Configuration
-  const PROGRESS_BLOCKS = 20;
+  const PROGRESS_BLOCKS = 30;
 
   // Helper: parse dd/mm/yyyy
   function parseDateDMY(s){
@@ -116,6 +116,7 @@
   function buildMonthTimeline(deadlineDate, expectedDate){
     if(!deadlineDate) return 'n/a';
     
+    const timelineLength = 40; // longer bar for better precision
     const startMonth = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), 1);
     const endDate = expectedDate || deadlineDate;
     const endMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
@@ -128,31 +129,51 @@
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // Scale to PROGRESS_BLOCKS length
-    const daysPerBlock = Math.ceil(totalDays / PROGRESS_BLOCKS);
+    // Scale to timelineLength
+    const daysPerBlock = Math.ceil(totalDays / timelineLength);
     let timeline = '';
     let lastMonthIndex = -1;
     
     currentDate = new Date(startMonth);
-    for(let block = 0; block < PROGRESS_BLOCKS; block++){
-      const checkDate = new Date(currentDate);
+    for(let block = 0; block < timelineLength; block++){
       let char = '·';
+      let hasDeadline = false;
+      let hasExpected = false;
+      let monthChanged = false;
       
-      // Check for month breaks
-      if(lastMonthIndex !== -1 && checkDate.getMonth() !== lastMonthIndex){
-        char = '|'; // month separator
-      } else {
+      // Check all days in this block for markers
+      for(let d = 0; d < daysPerBlock && currentDate <= endMonth; d++){
+        const checkDate = new Date(currentDate);
+        
+        // Check for month break
+        if(lastMonthIndex !== -1 && checkDate.getMonth() !== lastMonthIndex){
+          monthChanged = true;
+        }
+        
         // Check for deadline and expected date
         if(deadlineDate.toDateString() === checkDate.toDateString()){
-          char = '●'; // deadline marker
-        } else if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()){
-          char = '○'; // expected date marker
+          hasDeadline = true;
         }
+        if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()){
+          hasExpected = true;
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Prioritize markers: deadline > expected > month break > dot
+      if(hasDeadline){
+        char = '●';
+      } else if(hasExpected){
+        char = '○';
+      } else if(monthChanged){
+        char = '|';
       }
       
       timeline += char;
-      lastMonthIndex = checkDate.getMonth();
-      currentDate.setDate(currentDate.getDate() + daysPerBlock);
+      if(lastMonthIndex !== currentDate.getMonth() - 1){
+        lastMonthIndex = new Date(currentDate.getTime() - 86400000).getMonth();
+      }
     }
     
     return timeline;
