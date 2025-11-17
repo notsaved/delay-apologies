@@ -28,34 +28,11 @@
 <body>
 <main>
   <h1>Writing projects status</h1>
-  <p class="desc">Minimal, unicode-only public board. Put <code>index.html</code> and <code>tasks.json</code> in the same repo and enable Pages.</p>
-
-  <details open>
-    <summary class="small">tasks.json example and notes</summary>
-    <pre class="editor">[
-  {
-    "name": "Short story — Blue Dwellings",
-    "original_deadline": "15/10/2025",
-    "expected_submission": "20/10/2025",
-    "completion": 85
-  },
-  {
-    "name": "Article: climate brief",
-    "original_deadline": "01/11/2025",
-    "expected_submission": "10/11/2025",
-    "completion": 60
-  }
-]
-
-Notes:
-• Dates must be dd/mm/yyyy. Use integers for completion 0..100.
-• Place this file at /tasks.json in the repo root so the page can fetch it.
-</pre>
-  </details>
+  <p class="desc">Apologies for the delay. This is what I'm currently working on, and how it is going.</p>
 
   <div id="board"></div>
 
-  <footer>Designed for simplicity and readability. No external assets used.</footer>
+  <footer>Apologies for the delay.</footer>
 </main>
 
 <script>
@@ -121,6 +98,37 @@ Notes:
     return `Due in ${-daysLate} day${daysLate===-1? '': 's'}`;
   }
 
+  // Calculate expected submission date based on completion percentage per day after deadline
+  function calculateExpectedSubmission(origDeadline, currentCompletion){
+    if(!origDeadline) return null;
+    
+    const today = new Date();
+    const daysLate = dayDiff(origDeadline, today);
+    
+    // If not yet late, return null (can't calculate from future)
+    if(daysLate === null || daysLate < 0) return null;
+    
+    // If already complete, return today
+    if(currentCompletion >= 100) return today;
+    
+    // If no progress yet (0%), estimate conservatively - cannot calculate
+    if(currentCompletion <= 0) return null;
+    
+    // Calculate daily progress rate: completion / days elapsed since deadline
+    const daysElapsed = daysLate + 1; // include the deadline day itself
+    const dailyProgressRate = currentCompletion / daysElapsed;
+    
+    // Calculate remaining completion and days needed
+    const remainingCompletion = 100 - currentCompletion;
+    const daysNeeded = Math.ceil(remainingCompletion / dailyProgressRate);
+    
+    // Calculate expected submission date
+    const expectedDate = new Date(today);
+    expectedDate.setDate(expectedDate.getDate() + daysNeeded);
+    
+    return expectedDate;
+  }
+
   // Fetch tasks.json and render
   async function loadAndRender(){
     let tasks = null;
@@ -157,10 +165,12 @@ Notes:
     tasks.forEach(task => {
       const name = task.name || 'untitled';
       const orig = task.original_deadline ? parseDateDMY(task.original_deadline) : null;
-      const expect = task.expected_submission ? parseDateDMY(task.expected_submission) : null;
       const comp = Math.max(0, Math.min(100, Number(task.completion) || 0));
 
-      const daysLate = orig ? dayDiff(orig, today) : null; // positive if late
+      // Calculate expected submission date based on completion percentage per day
+      const expect = calculateExpectedSubmission(orig, comp);
+
+      const daysLate = orig ? dayDiff(orig, new Date()) : null; // positive if late
 
       const origText = orig ? formatDMY(orig) : 'n/a';
       const expectText = expect ? formatDMY(expect) : 'n/a';
