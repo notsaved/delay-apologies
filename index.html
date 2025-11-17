@@ -1,0 +1,205 @@
+<!-- index.html for GitHub Pages — minimalist unicode-only status board
+     Data file: /tasks.json (place in the same repo). Example below.
+     Save as index.html and add a tasks.json at repo root. No build steps needed.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Writing projects status</title>
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:#fff;color:#000}
+  main{max-width:900px;margin:28px auto;padding:18px}
+  h1{font-size:18px;margin:0 0 14px}
+  p.desc{margin:0 0 18px;color:#444}
+  pre.editor{width:100%;box-sizing:border-box;padding:10px;border:1px solid #ddd;background:#fafafa;font-family:monospace;margin:10px 0;white-space:pre-wrap}
+  .card{border:1px solid #eee;padding:12px;margin:10px 0;border-radius:8px}
+  .row{display:flex;align-items:center;gap:12px}
+  .col{flex:1}
+  .meta{font-size:12px;color:#444}
+  .bar{font-family:monospace;letter-spacing:1px}
+  .small{font-size:12px;color:#666}
+  footer{margin-top:18px;font-size:12px;color:#666}
+  a{color:inherit;text-decoration:underline}
+  @media (max-width:520px){main{padding:12px;margin:14px} h1{font-size:16px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Writing projects status</h1>
+  <p class="desc">Minimal, unicode-only public board. Put <code>index.html</code> and <code>tasks.json</code> in the same repo and enable Pages.</p>
+
+  <details open>
+    <summary class="small">tasks.json example and notes</summary>
+    <pre class="editor">[
+  {
+    "name": "Short story — Blue Dwellings",
+    "original_deadline": "15/10/2025",
+    "expected_submission": "20/10/2025",
+    "completion": 85
+  },
+  {
+    "name": "Article: climate brief",
+    "original_deadline": "01/11/2025",
+    "expected_submission": "10/11/2025",
+    "completion": 60
+  }
+]
+
+Notes:
+• Dates must be dd/mm/yyyy. Use integers for completion 0..100.
+• Place this file at /tasks.json in the repo root so the page can fetch it.
+</pre>
+  </details>
+
+  <div id="board"></div>
+
+  <footer>Designed for simplicity and readability. No external assets used.</footer>
+</main>
+
+<script>
+(function(){
+  // Configuration
+  const PROGRESS_BLOCKS = 20; // number of characters for progress bar
+  const SLIDER_WIDTH = 21;    // number of characters for lateness slider
+  const MAX_LATE_DAYS = 30;   // clamp lateness to +-MAX_LATE_DAYS
+
+  // Helper: parse dd/mm/yyyy
+  function parseDateDMY(s){
+    if(!s) return null;
+    const parts = s.split('/').map(x => parseInt(x,10));
+    if(parts.length !== 3 || parts.some(isNaN)) return null;
+    const [dd, mm, yyyy] = parts;
+    return new Date(yyyy, mm - 1, dd);
+  }
+
+  // day difference rounded to nearest integer, b - a
+  function dayDiff(a, b){
+    if(!a || !b) return null;
+    const ms = 1000 * 60 * 60 * 24;
+    // use UTC dates at midnight to avoid partial-day artifacts
+    const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+    const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.round((utcB - utcA) / ms);
+  }
+
+  // Build unicode progress bar with filled █ and empty ░
+  function buildProgressBar(percent){
+    const filled = Math.round((percent/100) * PROGRESS_BLOCKS);
+    const empty = PROGRESS_BLOCKS - filled;
+    return '█'.repeat(filled) + '░'.repeat(empty);
+  }
+
+  // Build lateness slider: center is deadline; dot moves left (early) or right (late)
+  function buildLatenessSlider(daysLate){
+    if(daysLate === null) return 'n/a';
+    const clamp = Math.max(-MAX_LATE_DAYS, Math.min(MAX_LATE_DAYS, daysLate));
+    // map clamp from [-MAX_LATE_DAYS, MAX_LATE_DAYS] to [0, SLIDER_WIDTH-1]
+    const pos = Math.round((clamp + MAX_LATE_DAYS) / (2 * MAX_LATE_DAYS) * (SLIDER_WIDTH - 1));
+    let out = '';
+    for(let i=0;i<SLIDER_WIDTH;i++){
+      out += (i === pos) ? '●' : '·';
+    }
+    return out;
+  }
+
+  // Format date as dd/mm/yyyy
+  function formatDMY(d){
+    if(!d) return 'n/a';
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth() + 1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    return dd + '/' + mm + '/' + yyyy;
+  }
+
+  // Lateness text
+  function latenessText(daysLate){
+    if(daysLate === null) return 'no original deadline';
+    if(daysLate > 0) return `Late by ${daysLate} day${daysLate===1? '': 's'}`;
+    if(daysLate === 0) return 'Due today';
+    return `Due in ${-daysLate} day${daysLate===-1? '': 's'}`;
+  }
+
+  // Fetch tasks.json and render
+  async function loadAndRender(){
+    let tasks = null;
+    try{
+      const r = await fetch('tasks.json', { cache: 'no-store' });
+      if(!r.ok) throw new Error('fetch failed');
+      tasks = await r.json();
+    } catch(e){
+      // fallback: show message with instructions
+      const board = document.getElementById('board');
+      board.innerHTML = '<div class="card">Could not load <code>tasks.json</code>. Add it to the repo root with dd/mm/yyyy dates. See example above.</div>';
+      return;
+    }
+
+    renderTasks(tasks);
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function renderTasks(tasks){
+    const today = new Date();
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    if(!Array.isArray(tasks) || tasks.length === 0){
+      board.innerHTML = '<div class="card">No tasks found in tasks.json</div>';
+      return;
+    }
+
+    tasks.forEach(task => {
+      const name = task.name || 'untitled';
+      const orig = task.original_deadline ? parseDateDMY(task.original_deadline) : null;
+      const expect = task.expected_submission ? parseDateDMY(task.expected_submission) : null;
+      const comp = Math.max(0, Math.min(100, Number(task.completion) || 0));
+
+      const daysLate = orig ? dayDiff(orig, today) : null; // positive if late
+
+      const origText = orig ? formatDMY(orig) : 'n/a';
+      const expectText = expect ? formatDMY(expect) : 'n/a';
+
+      const bar = buildProgressBar(comp);
+      const slider = orig ? buildLatenessSlider(daysLate) : 'n/a';
+      const lateTxt = latenessText(daysLate);
+
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      // build content using DOM for safety
+      const row = document.createElement('div'); row.className = 'row';
+      const col = document.createElement('div'); col.className = 'col';
+      const strong = document.createElement('strong'); strong.textContent = name; col.appendChild(strong);
+      row.appendChild(col);
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `completion: ${comp}%`; row.appendChild(meta);
+
+      const dates = document.createElement('div'); dates.className = 'small'; dates.textContent = `original: ${origText}  |  expected: ${expectText}`;
+
+      const barLine = document.createElement('div'); barLine.style.marginTop = '8px'; barLine.style.fontFamily = 'monospace'; barLine.innerHTML = escapeHtml(bar) + '  ' + `<span class="small"> ${comp}%</span>`;
+
+      const lateLine = document.createElement('div'); lateLine.style.marginTop = '8px'; lateLine.className = 'small'; lateLine.textContent = lateTxt;
+
+      const sliderLine = document.createElement('div'); sliderLine.style.marginTop = '6px'; sliderLine.className = 'bar small'; sliderLine.textContent = 'lateness: ' + slider + (daysLate !== null ? '  (' + (daysLate > 0 ? 'late: ' + daysLate : daysLate===0 ? 'on time' : 'early: ' + (-daysLate)) + ')' : '');
+
+      card.appendChild(row);
+      card.appendChild(dates);
+      card.appendChild(barLine);
+      card.appendChild(lateLine);
+      card.appendChild(sliderLine);
+
+      board.appendChild(card);
+    });
+  }
+
+  // initial load
+  loadAndRender();
+
+  // optional: auto-refresh every 5 minutes to pick up tasks.json edits
+  setInterval(loadAndRender, 5 * 60 * 1000);
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Short story — Blue Dwellings",
+    "original_deadline": "15/10/2025",
+    "expected_submission": "20/10/2025",
+    "completion": 85
+  },
+  {
+    "name": "Article: climate brief",
+    "original_deadline": "01/11/2025",
+    "expected_submission": "10/11/2025",
+    "completion": 60
+  },
+  {
+    "name": "Novel: draft 2",
+    "original_deadline": "01/12/2025",
+    "expected_submission": "15/12/2025",
+    "completion": 30
+  }
+]
