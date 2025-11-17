@@ -80,6 +80,32 @@
     return `due in ${-daysLate}d`;
   }
 
+  // Emoji based on lateness and completion
+  function getStatusEmoji(daysLate, completion){
+    // If complete, always happy
+    if(completion >= 100) return '😊';
+    
+    // If no deadline, neutral
+    if(daysLate === null) return '🤔';
+    
+    // If not yet late, mood improves with completion
+    if(daysLate <= 0){
+      if(completion >= 50) return '😌';
+      if(completion >= 20) return '🙂';
+      return '😐';
+    }
+    
+    // If late, combine lateness and completion
+    const latenessLevel = Math.min(daysLate / 30, 1); // normalize to 0-1
+    const progressLevel = completion / 100;
+    const stressLevel = latenessLevel - (progressLevel * 0.5); // progress helps reduce stress
+    
+    if(stressLevel > 0.7) return '😰';
+    if(stressLevel > 0.4) return '😟';
+    if(stressLevel > 0.1) return '😕';
+    return '😐';
+  }
+
   // Calculate expected submission date based on completion percentage per day after deadline
   function calculateExpectedSubmission(origDeadline, currentCompletion){
     if(!origDeadline) return null;
@@ -214,6 +240,7 @@
       const expectText = expect ? formatDMY(expect) : 'n/a';
       const bar = buildProgressBar(comp);
       const lateTxt = latenessText(daysLate);
+      const emoji = getStatusEmoji(daysLate, comp);
 
       const card = document.createElement('div');
       card.className = 'card';
@@ -231,7 +258,7 @@
       const barLine = document.createElement('div');
       barLine.style.marginTop = '8px';
       barLine.style.fontFamily = 'monospace';
-      barLine.textContent = bar + ' ' + comp + '%';
+      barLine.textContent = bar + ' ' + emoji;
 
       const monthLine = document.createElement('div');
       monthLine.style.marginTop = '6px';
