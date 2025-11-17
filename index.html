@@ -150,7 +150,7 @@
   function buildMonthTimeline(deadlineDate, expectedDate){
     if(!deadlineDate) return 'n/a';
     
-    const timelineLength = 40;
+    const timelineLength = 34; // 30 progress blocks + 1 space + 3 for "%X" format
     const today = new Date();
     today.setHours(0, 0, 0, 0); // normalize to midnight
     
@@ -202,12 +202,16 @@
       // Calculate the date range for this block
       const blockStartDate = new Date(startDate);
       blockStartDate.setDate(blockStartDate.getDate() + Math.floor(block * daysPerBlock));
+      blockStartDate.setHours(0, 0, 0, 0);
+      
       const blockEndDate = new Date(startDate);
       blockEndDate.setDate(blockEndDate.getDate() + Math.floor((block + 1) * daysPerBlock) - 1);
+      blockEndDate.setHours(23, 59, 59, 999);
       
       // Check all days in this block for markers
       let checkDate = new Date(blockStartDate);
-      checkDate.setHours(0, 0, 0, 0); // normalize
+      checkDate.setHours(0, 0, 0, 0);
+      
       while(checkDate <= blockEndDate){
         if(checkDate.getMonth() !== lastMonthShown) monthChanged = true;
         
