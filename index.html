@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Writing projects status</title>
+<title>Apologies for the Delay</title>
 <style>
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:#fff;color:#000}
   main{max-width:900px;margin:28px auto;padding:18px}
@@ -14,6 +14,10 @@
   .title strong{flex:1}
   .small{font-size:12px;color:#666}
   footer{margin-top:18px;font-size:12px;color:#666}
+  .timeline{margin-top:24px;padding-top:18px;border-top:1px solid #eee;font-size:11px;color:#999;font-family:monospace;line-height:1.6}
+  .bar{margin-top:8px;font-family:monospace}
+  .bar-line{margin-top:6px;font-size:11px}
+  .late-text{margin-top:8px}
   @media (max-width:520px){main{padding:12px;margin:14px} h1{font-size:16px}}
 </style>
 </head>
@@ -26,7 +30,7 @@
 
   <footer>Again, apologies for the delay.</footer>
   
-  <div style="margin-top:24px;padding-top:18px;border-top:1px solid #eee;font-size:11px;color:#999;font-family:monospace;line-height:1.6">
+  <div class="timeline">
     Timeline:<br>
     · day<br>
     | month<br>
@@ -149,12 +153,23 @@
     const timelineLength = 40;
     const today = new Date();
     
-    // Determine range: start from min(deadline, today) to max(expected, deadline)
-    const startDate = new Date(deadlineDate);
-    if(today < startDate) startDate.setDate(startDate.getDate() - 14);
-    else startDate.setMonth(startDate.getMonth() - 1);
+    // Determine range: ensure it includes deadline, today, and expected date
+    let startDate = new Date(deadlineDate);
+    let endDate = new Date(deadlineDate);
     
-    const endDate = expectedDate || deadlineDate;
+    // Make sure today is included
+    if(today < startDate) startDate = new Date(today);
+    if(today > endDate) endDate = new Date(today);
+    
+    // Make sure expected date is included
+    if(expectedDate){
+      if(expectedDate < startDate) startDate = new Date(expectedDate);
+      if(expectedDate > endDate) endDate = new Date(expectedDate);
+    }
+    
+    // Add context around the range
+    if(today >= deadlineDate) startDate.setMonth(startDate.getMonth() - 1);
+    else startDate.setDate(startDate.getDate() - 14);
     
     // Calculate total days in range
     let totalDays = 0;
@@ -176,14 +191,12 @@
     let timeline = '';
     let lastMonthShown = startDate.getMonth();
     
-    currentDate = new Date(startDate);
     for(let block = 0; block < timelineLength; block++){
       let char = '·';
       let hasDeadline = false;
       let hasExpected = false;
       let hasToday = false;
       let monthChanged = false;
-      let currentMonth = currentDate.getMonth();
       
       // Calculate the date range for this block
       const blockStartDate = new Date(startDate);
@@ -196,40 +209,20 @@
       while(checkDate <= blockEndDate){
         if(checkDate.getMonth() !== lastMonthShown) monthChanged = true;
         
-        // Check for special dates
-        if(deadlineDate.toDateString() === checkDate.toDateString()){
-          hasDeadline = true;
-        }
-        if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()){
-          hasExpected = true;
-        }
-        if(today.toDateString() === checkDate.toDateString()){
-          hasToday = true;
-        }
+        if(deadlineDate.toDateString() === checkDate.toDateString()) hasDeadline = true;
+        if(expectedDate && expectedDate.toDateString() === checkDate.toDateString()) hasExpected = true;
+        if(today.toDateString() === checkDate.toDateString()) hasToday = true;
         
-        currentMonth = checkDate.getMonth();
         checkDate.setDate(checkDate.getDate() + 1);
       }
       
-      // Combine markers when they coincide
-      if(hasDeadline && monthChanged){
-        char = '●|';
-      } else if(hasExpected && monthChanged){
-        char = '○|';
-      } else if(hasToday && monthChanged){
-        char = '✕|';
-      } else if(hasDeadline){
-        char = '●';
-      } else if(hasExpected){
-        char = '○';
-      } else if(hasToday){
-        char = '✕';
-      } else if(monthChanged){
-        char = '|';
-      }
+      // Prioritize markers: deadline > expected > today > month break > dot
+      if(hasDeadline) char = '●';
+      else if(hasExpected) char = '○';
+      else if(hasToday) char = '✕';
+      else if(monthChanged) char = '|';
       
-      if(monthChanged) lastMonthShown = currentMonth;
-      
+      if(monthChanged) lastMonthShown = blockEndDate.getMonth();
       timeline += char;
     }
     
@@ -294,20 +287,15 @@
       dates.textContent = `deadline: ${origText}  |  expected: ${expectText}`;
 
       const barLine = document.createElement('div');
-      barLine.style.marginTop = '8px';
-      barLine.style.fontFamily = 'monospace';
+      barLine.className = 'bar small';
       barLine.textContent = bar + ' ' + comp + '%';
 
       const monthLine = document.createElement('div');
-      monthLine.style.marginTop = '6px';
-      monthLine.style.fontFamily = 'monospace';
-      monthLine.style.fontSize = '11px';
-      monthLine.className = 'small';
+      monthLine.className = 'bar-line small';
       monthLine.textContent = buildMonthTimeline(orig, expect);
 
       const lateLine = document.createElement('div');
-      lateLine.style.marginTop = '8px';
-      lateLine.className = 'small';
+      lateLine.className = 'late-text small';
       lateLine.textContent = lateTxt;
 
       card.appendChild(title);
