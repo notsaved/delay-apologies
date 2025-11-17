@@ -26,8 +26,13 @@
 
   <footer>Again, apologies for the delay.</footer>
   
-  <div style="margin-top:24px;padding-top:18px;border-top:1px solid #eee;font-size:11px;color:#999;font-family:monospace">
-    Timeline: · day  | month  ● deadline  ○ expected  ✕ today 
+  <div style="margin-top:24px;padding-top:18px;border-top:1px solid #eee;font-size:11px;color:#999;font-family:monospace;line-height:1.6">
+    Timeline:<br>
+    · day<br>
+    | month<br>
+    ● deadline<br>
+    ○ expected<br>
+    ✕ today
   </div>
 </main>
 
@@ -206,20 +211,24 @@
         checkDate.setDate(checkDate.getDate() + 1);
       }
       
-      // Prioritize markers: deadline > expected > today > month break > dot
-      if(hasDeadline){
+      // Combine markers when they coincide
+      if(hasDeadline && monthChanged){
+        char = '●|';
+      } else if(hasExpected && monthChanged){
+        char = '○|';
+      } else if(hasToday && monthChanged){
+        char = '✕|';
+      } else if(hasDeadline){
         char = '●';
-        lastMonthShown = currentMonth;
       } else if(hasExpected){
         char = '○';
-        lastMonthShown = currentMonth;
       } else if(hasToday){
         char = '✕';
-        lastMonthShown = currentMonth;
       } else if(monthChanged){
         char = '|';
-        lastMonthShown = currentMonth;
       }
+      
+      if(monthChanged) lastMonthShown = currentMonth;
       
       timeline += char;
     }
