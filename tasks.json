@@ -2,7 +2,12 @@
   {
     "name": "Algorithmic folklore ORE entry",
     "original_deadline": "15/11/2025",
-    "completion": 5
+    "completion": 12
+  },
+  {
+    "name": "AES vignette",
+    "original_deadline": "30/11/2025",
+    "completion": 0
   },
   {
     "name": "Yilong Ma FM article",
@@ -12,6 +17,11 @@
   {
     "name": "Siles IJoC book review",
     "original_deadline": "16/10/2025",
-    "completion": 45
+    "completion": 55
+  },
+    {
+    "name": "Greenspan TCS book review",
+    "original_deadline": "08/10/2025",
+    "completion": 65
   }
 ]
