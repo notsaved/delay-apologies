@@ -115,7 +115,7 @@
     return '😐';
   }
 
-  // Calculate expected submission date based on completion percentage per day after deadline
+  // Calculate expected submission date based on 2-week baseline minus completion
   function calculateExpectedSubmission(origDeadline, currentCompletion){
     if(!origDeadline) return null;
     
@@ -128,16 +128,12 @@
     // If already complete, return today
     if(currentCompletion >= 100) return today;
     
-    // If no progress yet (0%), estimate conservatively - cannot calculate
-    if(currentCompletion <= 0) return null;
+    // Baseline: 2 weeks (14 days) to complete the task
+    const baselineDays = 14;
     
-    // Calculate daily progress rate: completion / days elapsed since deadline
-    const daysElapsed = daysLate + 1; // include the deadline day itself
-    const dailyProgressRate = currentCompletion / daysElapsed;
-    
-    // Calculate remaining completion and days needed
-    const remainingCompletion = 100 - currentCompletion;
-    const daysNeeded = Math.ceil(remainingCompletion / dailyProgressRate);
+    // Adjust based on completion: fewer days remaining as completion increases
+    const remainingPercent = 100 - currentCompletion;
+    const daysNeeded = Math.ceil((remainingPercent / 100) * baselineDays);
     
     // Calculate expected submission date
     const expectedDate = new Date(today);
